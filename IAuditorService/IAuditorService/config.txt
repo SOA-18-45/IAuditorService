@@ -1,0 +1,3 @@
+﻿ServiceName=IAuditorService
+ServiceAddress=localhost:54321/IAuditorService
+ServiceRepoAddress=localhost:54322/IServiceRepository
