@@ -47,6 +47,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AuditorService.cs" />
+    <Compile Include="AuditsRegister.cs" />
     <Compile Include="ConfigReader.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Program.cs" />

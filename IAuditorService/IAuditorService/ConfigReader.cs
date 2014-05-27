@@ -17,6 +17,7 @@ namespace IAuditorService
             string configFile = System.IO.File.ReadAllText(readerPath);
             configFile.Replace(" ", String.Empty);
             configFile.Replace("\r", String.Empty);
+            configFile.Replace("\t", String.Empty);
             parameters = configFile.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
             Logger.Log("ConfigReader: Initialized!");
         }
