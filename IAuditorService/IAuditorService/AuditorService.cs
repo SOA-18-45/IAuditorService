@@ -1,4 +1,6 @@
 ﻿using Contracts;
+using log4net;
+using log4net.Config;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,52 +16,73 @@ namespace IAuditorService
     {
         private IServiceRepository serviceRepository;
         private ServiceHost sh;
-        private AuditsRegister AudRegister;
+        private AuditsRegister audRegister;
+        private static readonly ILog log = LogManager.GetLogger(typeof(AuditorService));
 
         private void CreateAuditsRegister()
         {
-            AudRegister = new VMAuditsRegister();
+            //audRegister = new VMAuditsRegister();
+            audRegister = new DBAuditsRegister();
+            //DBTest();
         }
 
-        private void RegisterService()
+        private bool RegisterService()
         {
-            Logger.Log("Registering service in ServiceRepository...");
+            log.Info("Registering service in ServiceRepository...");
             NetTcpBinding binding = new NetTcpBinding(SecurityMode.None);
             ChannelFactory<IServiceRepository> cf = new ChannelFactory<IServiceRepository>(binding, ConfigReader.GetParameter("ServiceRepoAddress"));
-            serviceRepository = cf.CreateChannel();
-            serviceRepository.registerService(ConfigReader.GetParameter("ServiceName"), ConfigReader.GetParameter("ServiceAddress"));
+            try
+            {
+                serviceRepository = cf.CreateChannel();
+                serviceRepository.registerService(ConfigReader.GetParameter("ServiceName"), ConfigReader.GetParameter("ServiceAddress"));
+            }
+            catch
+            {
+                log.Error("Couldn't connect to service repository. Check configuration and retry. ");
+                return false;
+            }
             var timer = new System.Threading.Timer(e => Ping(), null, TimeSpan.Zero, TimeSpan.FromSeconds(5));
-            Logger.Log("Successfully registered service in ServiceRepository!");
+            log.Info("Successfully registered service in ServiceRepository!");
+            return true;
         }
 
         private void Ping()
         {
             serviceRepository.isAlive(ConfigReader.GetParameter("ServiceName"));
-            Logger.Log("Ping...");
+            log.Debug("Ping...");
         }
 
         private void UnregisterService()
         {
-            Logger.Log("Unregistering service from ServiceRepository...");
+            log.Info("Unregistering service from ServiceRepository...");
             serviceRepository.unregisterService(ConfigReader.GetParameter("ServiceName"));
             sh.Close();
-            Logger.Log("Service unregistered!");
+            log.Info("Service unregistered!");
         }
 
         public static void StartService()
         {
-            Logger.Log("AuditorService starting up...");
+            BasicConfigurator.Configure();
+            log.Info("AuditorService starting up...");
             AuditorService service = new AuditorService();
-            service.CreateServiceHost();
+            if (!service.CreateServiceHost())
+            {
+                Console.ReadKey();
+                return;
+            }
             service.CreateAuditsRegister();
-            Logger.Log("AuditorService is up!");
-            service.RegisterService();
+            log.Info("AuditorService is up!");
+            if (!service.RegisterService())
+            {
+                Console.ReadKey();
+                return;
+            }
 
-            Console.ReadLine();
+            Console.ReadKey();
             service.UnregisterService();
         }
 
-        private void CreateServiceHost()
+        private bool CreateServiceHost()
         {
             sh = new ServiceHost(this, new Uri[] { new Uri(ConfigReader.GetParameter("ServiceAddress")) });
             NetTcpBinding binding = new NetTcpBinding(SecurityMode.None);
@@ -72,16 +95,25 @@ namespace IAuditorService
             }
             metadata.MetadataExporter.PolicyVersion = PolicyVersion.Policy15;
             sh.AddServiceEndpoint(ServiceMetadataBehavior.MexContractName, MetadataExchangeBindings.CreateMexTcpBinding(), "mex");
-            sh.Open();
+            try
+            {
+                sh.Open();
+            }
+            catch
+            {
+                log.Error("Couldn't open service host. Check configuration and retry. ");
+                return false;
+            }
+            return true;
         }
 
         private void RegisterAudit(AuditType type)
         {
             Audit audit = new Audit();
             audit.AuditDate = DateTime.Now.ToString();
-            audit.Id = new Guid();
+            audit.Id = Guid.NewGuid();
             audit.Type = type;
-            AudRegister.RegisterAudit(audit);
+            audRegister.RegisterAudit(audit);
         }
 
         public int GetAccountCount()
@@ -143,6 +175,7 @@ namespace IAuditorService
 
         private IAccountRepository connectToAccountRepository()
         {
+            log.Info("Connecting to account repository...");
             string accountRepoAddress = serviceRepository.getServiceAddress("IAccountRepository");
             NetTcpBinding binding = new NetTcpBinding(SecurityMode.None);
             ChannelFactory<IAccountRepository> cf = new ChannelFactory<IAccountRepository>(binding, accountRepoAddress);
@@ -152,7 +185,23 @@ namespace IAuditorService
 
         public List<Audit> GetAllAuditsData()
         {
-            return AudRegister.GetAllAudits();
+            return audRegister.GetAllAudits();
+        }
+
+        private void DBTest()
+        {
+            RegisterAudit(AuditType.AccountByTypeCount);
+            RegisterAudit(AuditType.AccountByTypeCount);
+            RegisterAudit(AuditType.Accounts);
+            RegisterAudit(AuditType.ClientCount);
+            RegisterAudit(AuditType.AccountByTypeCount);
+            RegisterAudit(AuditType.ClientCount);
+            RegisterAudit(AuditType.AccountsByType);
+            List<Audit> audits = GetAllAuditsData();
+            foreach (Audit audit in audits)
+            {
+                log.Info(audit.Id+"   "+audit.AuditDate + "   " + audit.Type);
+            }
         }
     }
 }

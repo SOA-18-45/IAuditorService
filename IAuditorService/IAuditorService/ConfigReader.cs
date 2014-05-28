@@ -1,4 +1,5 @@
-﻿using System;
+﻿using log4net;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,16 +11,17 @@ namespace IAuditorService
     {
         private const string readerPath = @"..\..\config.txt";
         private static string[] parameters = null;
+        private static readonly ILog log = LogManager.GetLogger(typeof(ConfigReader));
 
         private static void Initialize()
         {
-            Logger.Log("ConfigReader: Initializing...");
+            log.Info("ConfigReader: Initializing...");
             string configFile = System.IO.File.ReadAllText(readerPath);
             configFile.Replace(" ", String.Empty);
             configFile.Replace("\r", String.Empty);
             configFile.Replace("\t", String.Empty);
             parameters = configFile.Split(new[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
-            Logger.Log("ConfigReader: Initialized!");
+            log.Info("ConfigReader: Initialized!");
         }
 
         public static string GetParameter(string name)
@@ -33,7 +35,7 @@ namespace IAuditorService
                     return str.Substring(name.Length + 1);
                 }
             }
-            Logger.LogError("ConfigReader: requested parameter ("+name+") not found in the config file!");
+            log.Error("ConfigReader: requested parameter ("+name+") not found in the config file!");
             return string.Empty;
         }
     }
