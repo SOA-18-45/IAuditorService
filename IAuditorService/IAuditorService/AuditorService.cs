@@ -86,6 +86,7 @@ namespace IAuditorService
         {
             sh = new ServiceHost(this, new Uri[] { new Uri(ConfigReader.GetParameter("ServiceAddress")) });
             NetTcpBinding binding = new NetTcpBinding(SecurityMode.None);
+            binding.MaxReceivedMessageSize = 10000000;
             sh.AddServiceEndpoint(typeof(IAudtitorService), binding, ConfigReader.GetParameter("ServiceAddress"));
             ServiceMetadataBehavior metadata = sh.Description.Behaviors.Find<ServiceMetadataBehavior>();
             if (metadata == null)
@@ -142,6 +143,8 @@ namespace IAuditorService
         public int GetClientCount()
         {
             RegisterAudit(AuditType.ClientCount);
+
+            return 100;
             string clientRepoAddress = serviceRepository.getServiceAddress("IClientRepository");
             NetTcpBinding binding = new NetTcpBinding(SecurityMode.None);
             ChannelFactory<IClientRepository> cf = new ChannelFactory<IClientRepository>(binding, clientRepoAddress);
@@ -185,6 +188,7 @@ namespace IAuditorService
 
         public List<Audit> GetAllAuditsData()
         {
+            log.Info("Auditing all");
             return audRegister.GetAllAudits();
         }
 

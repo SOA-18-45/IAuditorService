@@ -51,7 +51,7 @@ namespace IAuditorService
         {
             using (var db = new AuditContext())
             {
-                var query = from a in db.Audits select a;
+                var query = from a in db.Audits orderby a.AuditDate select a;
                 return new List<Audit>(query);
             }
         }
